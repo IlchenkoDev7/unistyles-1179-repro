@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "unistyles-1179-repro",
+    "slug": "unistyles-1179-repro",
+    "version": "1.0.0",
+    "scheme": "unistyles1179repro",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "com.reprolab.unistyles1179",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.reprolab.unistyles1179"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      "expo-router"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "59850aaa-3a9d-4ed3-a247-1668eb1921b1"
+      }
+    },
+    "owner": "alex777ilc"
+  }
+}

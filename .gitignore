@@ -1,0 +1,17 @@
+node_modules/
+.expo/
+dist/
+dist-ios/
+# Prebuild-generated native projects (CNG)
+/ios/
+/android/
+*.log
+.DS_Store
+
+# iOS signing secrets — never commit
+*.p8
+*.p12
+*.mobileprovision
+*.certSigningRequest
+credentials.json
+credentials/
