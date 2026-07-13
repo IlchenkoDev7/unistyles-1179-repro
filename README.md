@@ -66,11 +66,16 @@ continuously animating reanimated views.
   logout) never receives `unlink` — its ref cleanup already ran at freeze time.
   Fabric frees the families, and everything keyed by those `ShadowNodeFamily*`
   (registry, suspended set, queued map entries) keeps dangling.
+- The suspended set is keyed by the raw pointer, so after a frozen unmount it
+  still contains freed addresses. A later mount whose new family happens to
+  reuse one of them passes the `isSuspended` check and takes the
+  `wasSuspended` path on its **first** `link()` — so on 3.3.0 even plain
+  mounts can queue an entry and trigger the commit, no unfreeze needed.
 - Every later `updateShadowTree` walks the pending-updates map and dereferences
   each family key (`family->getTag()`, the `nativeProps_DEPRECATED`
   read/update — `cxx/shadowTree/ShadowTreeManager.cpp:22-33`) → use-after-free.
   On 3.2.5 that walk ran only on a theme/dependency commit; **on 3.3.0 it runs
-  on every re-link of a suspended family, i.e. during plain navigation.**
+  on every suspended-family `link()`, i.e. during plain navigation.**
   Depending on what the freed memory has become, it dies as a libmalloc
   invalid-free `abort()` or a `SIGSEGV`.
 
@@ -82,12 +87,11 @@ Build Release on a physical device — see [Building](#building).
 
 On **Sign in**, tap **“🚀 Auto-run navigation repro (~30 s)”** and don't touch
 the phone. The driver ([`src/repro/autoRepro.ts`](src/repro/autoRepro.ts))
-runs three cycles of *log in → push Settings → push Edit profile (tabs freeze)
-→ back (tabs unfreeze; the re-link queues pending updates) → push Edit profile
-(freeze again) → log out (the frozen tabs unmount; their entries dangle)*,
-then a final log in → Settings → Edit profile → back. In our runs it aborts
-within the first auto-run; if it survives, tap the button again — every run
-adds another batch of dangling entries. No theme API is touched at any point.
+runs five rounds of *log in → Profile tab → push Settings → push Edit profile
+(the tabs freeze) → log out (the frozen tabs unmount; their families dangle)*,
+then one final log in → Profile tab so the last round's entries get a walk to
+detonate on. Every round adds another batch of dangling entries; if a run
+survives, tap the button again. No theme API is touched at any point.
 
 Manual equivalent, one round: **Log in → Profile tab → Open Settings → Open
 Edit profile → Log out** — repeat the round until it crashes. No Back step is
@@ -115,7 +119,9 @@ the `slice_uuid` in the corresponding `.ips`.
 - [`unistyles1179repro-2026-07-13-190423.ips`](crash/unistyles1179repro-2026-07-13-190423.ips)
 - [`unistyles1179repro-2026-07-13.app.dSYM.zip`](crash/unistyles1179repro-2026-07-13.app.dSYM.zip) —
   EAS build `dde9cf9d-b70b-42a1-9b95-5d99fb6e396f`, git commit `4e863c5`, app
-  dSYM UUID `A5BAAE1F-CA07-3E1B-A061-E886E3B26FD5`.
+  dSYM UUID `A5BAAE1F-CA07-3E1B-A061-E886E3B26FD5`. (The driver at that commit
+  ran the same navigation-only loop with extra Back steps between the pushes;
+  the crash path is the same.)
 
 `EXC_CRASH (SIGABRT)`, `abort() called`, faulting thread
 `com.facebook.react.runtime.JavaScript`:
