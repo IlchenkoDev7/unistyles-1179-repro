@@ -13,7 +13,7 @@ export default function SignIn() {
     <ScreenScaffold
       title="Sign in"
       seed={1}
-      note="Crash ① — navigation only (new in 3.3.0): tap Auto-run and don't touch the phone (~30 s). It logs in, freezes the nested Tabs (two pushes), unfreezes them once with a back (the re-link queues pending shadow updates), freezes again and logs out — the frozen tabs unmount, their queued entries dangle — then repeats; every later unfreeze walks unistyles' never-drained map and dereferences the freed families. Manual steps: Log in → Settings → Edit profile → Back → Edit profile → Log out → Log in → Settings → Edit profile → Back. Crash ② — theme (same as on 3.2.5): ① Log in → Settings → Edit profile → Log out, then ② toggle theme here repeatedly (~5–20 toggles)."
+      note="Crash ① — navigation only (new in 3.3.0): tap Auto-run and don't touch the phone (~30 s). Manual equivalent, one round: Log in → Profile tab → Open Settings → Open Edit profile → Log out; repeat the round until it crashes — no Back step and no theme change needed. Crash ② — theme (recorded on 3.2.5): ① Log in → Profile tab → Settings → Edit profile → ① Log out, then ② toggle theme here repeatedly (~5–20 toggles)."
     >
       <Text style={styles.section}>Crash ① · navigation only — hands-free</Text>
       <Pressable style={styles.btnDanger} onPress={() => void runAutoRepro({ login, logout })}>
