@@ -15,3 +15,7 @@ dist-ios/
 *.certSigningRequest
 credentials.json
 credentials/
+
+# EAS local build outputs
+build-*.ipa
+build-*.tar.gz

@@ -111,43 +111,59 @@ one more log-in → navigate → log-out round.
 
 ## Crash artifacts
 
-[`crash/`](crash/) contains one unedited device crash report per flow, plus
-the dSYMs of the exact build that produced it — the app dSYM's UUID matches
-the `slice_uuid` in the corresponding `.ips`.
+[`crash/`](crash/) contains unedited device crash reports, each with the app
+dSYM of the exact build that produced it (its UUID matches the `slice_uuid`
+in the corresponding `.ips`): two for the navigation-only flow — it has died
+both ways, `SIGSEGV` and libmalloc `SIGABRT` — and one for the theme flow.
 
 ### Flow ① — navigation only, unistyles 3.3.0 (2026-07-13)
 
-- [`unistyles1179repro-2026-07-13-190423.ips`](crash/unistyles1179repro-2026-07-13-190423.ips)
-- [`unistyles1179repro-2026-07-13.app.dSYM.zip`](crash/unistyles1179repro-2026-07-13.app.dSYM.zip) —
-  EAS build `dde9cf9d-b70b-42a1-9b95-5d99fb6e396f`, git commit `4e863c5`, app
-  dSYM UUID `A5BAAE1F-CA07-3E1B-A061-E886E3B26FD5`. (The driver at that commit
-  ran the same navigation-only loop with extra Back steps between the pushes;
-  the crash path is the same.)
+**SIGSEGV — the current driver, no Back steps:**
 
-`EXC_CRASH (SIGABRT)`, `abort() called`, faulting thread
-`com.facebook.react.runtime.JavaScript`:
-`___BUG_IN_CLIENT_OF_LIBMALLOC_POINTER_BEING_FREED_WAS_NOT_ALLOCATED` directly
-above three app frames (imageOffsets `645864`, `397852`, `666908` at image
-base `0x102ef0000`; unistyles is statically linked, so its code lives in the
-main binary). Symbolicated against the dSYM:
+- [`unistyles1179repro-2026-07-13-203234.ips`](crash/unistyles1179repro-2026-07-13-203234.ips)
+- [`unistyles1179repro-2026-07-13-203234.app.dSYM.zip`](crash/unistyles1179repro-2026-07-13-203234.app.dSYM.zip) —
+  EAS local build, git commit `24b9e0e`, app dSYM UUID
+  `9F1A0467-F788-3CE5-8E49-C8D224265069`.
+
+`EXC_BAD_ACCESS (SIGSEGV)`, `KERN_INVALID_ADDRESS at 0x000000000000000d`,
+faulting thread `com.facebook.react.runtime.JavaScript`. The three app frames
+(imageOffsets `3435624`, `3205020`, `3455360` at image base `0x104078000`;
+unistyles is statically linked, so its code lives in the main binary):
 
 ```
 $ atos -arch arm64 -o unistyles1179repro.app.dSYM/Contents/Resources/DWARF/unistyles1179repro \
-    -l 0x102ef0000 0x102f8dae8 0x102f5121c 0x102f92d1c
+    -l 0x104078000 0x1043bec68 0x10438679c 0x1043c3980
 
 margelo::nitro::unistyles::shadow::ShadowTreeManager::updateShadowTree(facebook::jsi::Runtime&) (in unistyles1179repro) (ShadowTreeManager.cpp:12)
 margelo::nitro::unistyles::HybridShadowRegistry::link(facebook::jsi::Runtime&, facebook::jsi::Value const&, facebook::jsi::Value const*, unsigned long) (in unistyles1179repro) (HybridShadowRegistry.cpp:0)
 margelo::nitro::HybridFunction margelo::nitro::HybridFunction::createRawHybridFunction<margelo::nitro::unistyles::HybridShadowRegistry>(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&, unsigned long, facebook::jsi::Value (margelo::nitro::unistyles::HybridShadowRegistry::*)(facebook::jsi::Runtime&, facebook::jsi::Value const&, facebook::jsi::Value const*, unsigned long))::'lambda'(facebook::jsi::Runtime&, facebook::jsi::Value const&, facebook::jsi::Value const*, unsigned long)::operator()(facebook::jsi::Runtime&, facebook::jsi::Value const&, facebook::jsi::Value const*, unsigned long) const (in unistyles1179repro) (HybridFunction.hpp:155)
 ```
 
-The abort fires inside `ShadowTreeManager::updateShadowTree`, called
-**directly from `HybridShadowRegistry::link`** — the code path added in 3.3.0.
-The frames below (in the `.ips`) are Hermes executing JS bytecode into a JSI
-host function (`hermes::vm::NativeFunction::_nativeCall` → `HFContext::func`)
-— i.e. the babel-injected `ShadowRegistry` call of a React ref attach, not a
-platform listener. The main thread is simultaneously inside a navigation
-mounting transaction (`RCTMountingManager performTransaction` →
-`calculateShadowViewMutations`). No theme change is involved.
+`updateShadowTree` is called **directly from `HybridShadowRegistry::link`** —
+the code path added in 3.3.0. Above these frames (in the `.ips`) the fault is
+already inside React's side of that commit — `UIManager::updateShadowTree` →
+`ShadowTreeRegistry::enumerate` → its transaction lambda — i.e. the
+`UIManagerBinding` call unistyles makes at `ShadowTreeManager.cpp:36`. Below
+them, Hermes is executing JS bytecode into a JSI host function
+(`hermes::vm::NativeFunction::_nativeCall` → `HFContext::func`) — the
+babel-injected `ShadowRegistry` call of a React ref attach, not a platform
+listener. No theme change is involved.
+
+**SIGABRT — an earlier shape of the same driver (extra Back steps between the
+pushes; same loop otherwise):**
+
+- [`unistyles1179repro-2026-07-13-190423.ips`](crash/unistyles1179repro-2026-07-13-190423.ips)
+- [`unistyles1179repro-2026-07-13.app.dSYM.zip`](crash/unistyles1179repro-2026-07-13.app.dSYM.zip) —
+  EAS build `dde9cf9d-b70b-42a1-9b95-5d99fb6e396f`, git commit `4e863c5`, app
+  dSYM UUID `A5BAAE1F-CA07-3E1B-A061-E886E3B26FD5`.
+
+Same entry: atos against that dSYM resolves its three app frames
+(imageOffsets `645864`, `397852`, `666908` at image base `0x102ef0000`) to
+the identical `updateShadowTree` ← `link` ← nitro-wrapper chain. This time
+the walk died in libmalloc — `abort()` under
+`___BUG_IN_CLIENT_OF_LIBMALLOC_POINTER_BEING_FREED_WAS_NOT_ALLOCATED` —
+with the main thread simultaneously inside a navigation mounting transaction
+(`RCTMountingManager performTransaction` → `calculateShadowViewMutations`).
 
 ### Flow ② — theme change after a logout, unistyles 3.2.5 (2026-07-06)
 
