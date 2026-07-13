@@ -85,12 +85,13 @@ Build Release on a physical device — see [Building](#building).
 
 ### Crash ① — navigation only (3.3.0, hands-free)
 
-On **Sign in**, tap **“🚀 Auto-run navigation repro (~30 s)”** and don't touch
+On **Sign in**, tap **“🚀 Auto-run navigation repro (~40 s)”** and don't touch
 the phone. The driver ([`src/repro/autoRepro.ts`](src/repro/autoRepro.ts))
-runs five rounds of *log in → Profile tab → push Settings → push Edit profile
+runs seven rounds of *log in → Profile tab → push Settings → push Edit profile
 (the tabs freeze) → log out (the frozen tabs unmount; their families dangle)*,
 then one final log in → Profile tab so the last round's entries get a walk to
-detonate on. Every round adds another batch of dangling entries; if a run
+detonate on — in our runs 3–5 rounds were usually enough, the rest is
+headroom. Every round adds another batch of dangling entries; if a run
 survives, tap the button again. No theme API is touched at any point.
 
 Manual equivalent, one round: **Log in → Profile tab → Open Settings → Open

@@ -21,7 +21,8 @@ type SessionActions = Readonly<{
 
 const STEP_MS = 900;
 const GATE_MS = 1300;
-const ROUNDS = 5;
+// In our runs 3–5 rounds usually sufficed; the extra rounds are headroom.
+const ROUNDS = 7;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
